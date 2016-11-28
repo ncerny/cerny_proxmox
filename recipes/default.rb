@@ -31,7 +31,7 @@ end
 
 apt_repository 'pve-no-subscription' do
   uri 'http://download.proxmox.com/debian'
-  distribution node['lsb']['codename']
+  distribution node['lsb']['codename'] || 'jessie'
   components ['pve-no-subscription']
   notifies :update, 'apt_update[pve]', :immediately
 end
