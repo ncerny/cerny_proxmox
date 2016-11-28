@@ -51,7 +51,7 @@ execute 'dist-upgrade' do
   command 'apt-get -y dist-upgrade'
   notifies :reboot_now, 'reboot[reboot-for-upgrades]', :immediately
   not_if do
-    ::File.exist('/etc/apt/apt.conf.d/15update-stamp') &&
+    ::File.exist?('/etc/apt/apt.conf.d/15update-stamp') &&
       (::DateTime.now - ::File.mtime('/etc/apt/apt.conf.d/15update-stamp')).to_i <= 7
   end
   only_if { ::Date.today.wday.eql?(node['hostname'][-2, 2].to_i % 7) }
