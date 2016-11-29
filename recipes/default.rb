@@ -167,17 +167,41 @@ execute 'PVE: Configure GlusterFS Storage' do
   not_if 'pvesh get /storage/gluster'
 end
 
-remote_file 'CentOS-7-x86_64-Minimal-1511.iso' do
-  source 'http://mirrors.mit.edu/centos/7/isos/x86_64/CentOS-7-x86_64-Minimal-1511.iso'
-end
+{
+  'CentOS-7-x86_64-Minimal-1511.iso' => 'http://mirrors.mit.edu/centos/7/isos/x86_64/CentOS-7-x86_64-Minimal-1511.iso',
+  'centos-7-default' => :system,
+  'ubuntu-14.04-standard' => :system,
+  'ubuntu-16.04-standard' => :system
+}.each do |fn, src|
+  if src.is_a?(String)
+    remote_file fn do
+      source src
+      not_if "pvesh get /nodes/#{node['hostname']}/storage/gluster/content | grep #{fn}"
+      notifies :run, "execute[GlusterFS: Upload #{fn}]", :immediately
+    end
+    execute "GlusterFS: Upload #{fn}" do
+      command "pvesh create /nodes/#{node['hostname']}/storage/gluster/upload -content #{(fn.end_with?('iso') ? 'iso' : 'vztmpl')} -filename #{fn} -tmpfilename #{fn}"
+      action :nothing
+    end
+  elsif src.is_a?(Symbol)
+    vztmpl = {}
+    Mixlib::ShellOut.new('pveam available').run_command.stdout.each_line do |line|
+      line = line.split
+      vztmpl[line[0]] ||= []
+      vztmpl[line[0]] << line[1]
+    end
 
-execute 'Upload CentOS-7-x86_64-Minimal-1511.iso' do
-  command 'pvesh create /nodes/pve01/storage/gluster/upload -content iso -filename CentOS-7-x86_64-Minimal-1511.iso -tmpfilename CentOS-7-x86_64-Minimal-1511.iso'
+    vztmpl[src].select { |n| n =~ /#{fn}/ }.each do |f|
+      execute "GlusterFS: Upload #{f}" do
+        command "pveam download gluster #{f}"
+        not_if "pvesh get /nodes/#{node['hostname']}/storage/gluster/content | grep #{f}"
+      end
+    end
+  end
 end
 
 # Ceph Cache Disks
 # TXA2D20400GA6001
-
 
 #
 #
