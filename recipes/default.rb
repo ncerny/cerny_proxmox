@@ -105,7 +105,7 @@ gluster_pvs = []
 node['block_device'].each do |drive, props|
   gluster_pvs << "/dev/#{drive}" if props['model'].eql?('MBF2600RC')
 end
-if gluster_pvs
+unless gluster_pvs.empty?
   directory '/export/gv0' do
     recursive true
   end
