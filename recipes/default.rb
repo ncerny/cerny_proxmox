@@ -106,7 +106,9 @@ node['block_device'].each do |drive, props|
   gluster_pvs << "/dev/#{drive}" if props['model'].eql?('MBF2600RC')
 end
 
-directory '/export/gv0'
+directory '/export/gv0' do
+  recursive true
+end
 
 lvm_volume_group 'glusterfs' do
   physical_volumes gluster_pvs
