@@ -168,11 +168,11 @@ execute 'PVE: Configure GlusterFS Storage' do
 end
 
 remote_file 'CentOS-7-x86_64-Minimal-1511.iso' do
-  source 'http://isoredirect.centos.org/centos/7/isos/x86_64/CentOS-7-x86_64-Minimal-1511.iso'
+  source 'http://mirrors.mit.edu/centos/7/isos/x86_64/CentOS-7-x86_64-Minimal-1511.iso'
 end
 
 execute 'Upload CentOS-7-x86_64-Minimal-1511.iso' do
-  command 'pvesh create /nodes/pve01/storage/gluster/upload -content iso -filename CentOS-7-x86_64-Minimal-1511.iso'
+  command 'pvesh create /nodes/pve01/storage/gluster/upload -content iso -filename CentOS-7-x86_64-Minimal-1511.iso -tmpfilename CentOS-7-x86_64-Minimal-1511.iso'
 end
 
 # Ceph Cache Disks
