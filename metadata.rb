@@ -4,7 +4,9 @@ maintainer_email 'ncerny@gmail.com'
 license 'apachev2'
 description 'Installs/Configures cerny_proxmox'
 long_description 'Installs/Configures cerny_proxmox'
-version '0.1.3'
+version '0.2.1'
+
+depends 'lvm'
 
 # If you upload to Supermarket you should set this so your cookbook
 # gets a `View Issues` link

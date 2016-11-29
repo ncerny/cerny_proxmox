@@ -83,17 +83,83 @@ end
   package pkg
 end
 
-execute 'GlusterFS: Configure the Trusted Pool' do
-  command 'gluster peer probe pve01.infra.cerny.cc; gluster peer probe pve02.infra.cerny.cc'
+include_recipe 'lvm::default'
+
+# VM Disks
+pve_pvs = []
+node['block_device'].each do |drive, props|
+  pve_pvs << "/dev/#{drive}" if props['model'].eql?('MK3001GRRB')
+end
+
+lvm_volume_group 'pvedata' do
+  physical_volumes pve_pvs
+  wipe_signatures true
+
+  thin_pool 'vmstore' do
+    size '100%VG'
+  end
 end
 
 # GlusterFS Disks
-# node['block_device'].each do |drive, props|
-#   p drive if props['model'].eql?('MBF2600RC')
-# end
+gluster_pvs = []
+node['block_device'].each do |drive, props|
+  gluster_pvs << "/dev/#{drive}" if props['model'].eql?('MBF2600RC')
+end
 
-# VM Disks
-# MK3001GRRB
+directory '/export/gv0'
+
+lvm_volume_group 'glusterfs' do
+  physical_volumes gluster_pvs
+  wipe_signatures true
+
+  logical_volume 'gv0' do
+    size        '100%VG'
+    filesystem  'xfs'
+    mount_point location: '/export/gv0'
+    stripes     2
+  end
+end
+
+directory '/export/gv0/brick'
+
+gluster_hosts = %w(pve01.infra.cerny.cc pve02.infra.cerny.cc)
+gluster_hosts.each do |host|
+  execute "GlusterFS: Configure the Trusted Pool - #{host}" do
+    command "gluster peer probe #{host}"
+    not_if { node['fqdn'].eql?(host) }
+    not_if "gluster peer status | grep #{host}"
+  end
+end
+
+bricks = ''
+gluster_hosts.each do |host|
+  bricks << "#{host}:/export/gv0/brick "
+end
+
+execute 'GlusterFS: Create Volume gv0' do
+  command "gluster volume create gv0 replica #{gluster_hosts.count} #{bricks}"
+  not_if 'gluster volume status gv0'
+end
+
+execute 'GlusterFS: Start volume gv0' do
+  command 'gluster volume start gv0'
+  not_if 'gluster volume info gv0 | grep Status | grep Started'
+end
+
+execute 'PVE: Remove default storage - local-lvm' do
+  command 'pvesh delete /storage/local-lvm'
+  only_if 'pvesh get /storage/local-lvm'
+end
+
+execute 'PVE: Configure Thin-LVM Storage' do
+  command 'pvesh create /storage -storage lvm -type lvmthin -content rootdir,images -vgname pvedata -thinpool vmstore'
+  not_if 'pvesh get /storage/lvm'
+end
+
+execute 'PVE: Configure GlusterFS Storage' do
+  command 'pvesh create /storage -storage gluster -type glusterfs -content images,iso,vztmpl -server pve01.infra.cerny.cc -server2 pve02.infra.cerny.cc -shared true -transport tcp -volume gv0'
+  not_if 'pvesh get /storage/gluster'
+end
 
 # Ceph Cache Disks
 # TXA2D20400GA6001
