@@ -96,7 +96,7 @@ lvm_volume_group 'pvedata' do
   wipe_signatures true
 
   thin_pool 'vmstore' do
-    size '100%VG'
+    size '99%VG'
   end
 end
 
@@ -113,7 +113,7 @@ lvm_volume_group 'glusterfs' do
   wipe_signatures true
 
   logical_volume 'gv0' do
-    size        '100%VG'
+    size        '99%VG'
     filesystem  'xfs'
     mount_point location: '/export/gv0'
     stripes     2
