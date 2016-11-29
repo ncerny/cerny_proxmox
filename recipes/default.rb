@@ -138,6 +138,9 @@ gluster_hosts.each do |host|
   bricks << "#{host}:/export/gv0/brick "
 end
 
+# setfattr -x trusted.glusterfs.volume-id /export/gv0/brick
+# setfattr -x trusted.gfid /export/gv0/brick
+
 execute 'GlusterFS: Create Volume gv0' do
   command "gluster volume create gv0 replica #{gluster_hosts.count} #{bricks}"
   not_if 'gluster volume status gv0'
@@ -159,7 +162,7 @@ execute 'PVE: Configure Thin-LVM Storage' do
 end
 
 execute 'PVE: Configure GlusterFS Storage' do
-  command 'pvesh create /storage -storage gluster -type glusterfs -content images,iso,vztmpl -server pve01.infra.cerny.cc -server2 pve02.infra.cerny.cc -shared true -transport tcp -volume gv0'
+  command 'pvesh create /storage -storage gluster -type glusterfs -content images,iso,vztmpl -server pve01.infra.cerny.cc -server2 pve02.infra.cerny.cc -transport tcp -volume gv0'
   not_if 'pvesh get /storage/gluster'
 end
 
