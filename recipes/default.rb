@@ -36,6 +36,14 @@ apt_repository 'pve-no-subscription' do
   notifies :update, 'apt_update[pve]', :immediately
 end
 
+apt_repository 'glusterfs' do
+  uri 'http://download.gluster.org/pub/gluster/glusterfs/3.9/LATEST/Debian/jessie/apt'
+  distribution node['lsb']['codename'] || 'jessie'
+  components ['main']
+  key 'http://download.gluster.org/pub/gluster/glusterfs/3.9/rsa.pub'
+  notifies :update, 'apt_update[pve]', :immediately
+end
+
 apt_update 'pve' do
   action :periodic
   frequency 86_400
@@ -70,6 +78,26 @@ execute 'join proxmox cluster' do
   end
   not_if { ::File.exist?('/etc/pve/corosync.conf') }
 end
+
+%w(lsb-release glusterfs-server glusterfs-client).each do |pkg|
+  package pkg
+end
+
+execute 'GlusterFS: Configure the Trusted Pool' do
+  command 'gluster peer probe pve01.infra.cerny.cc; gluster peer probe pve02.infra.cerny.cc'
+end
+
+# GlusterFS Disks
+# node['block_device'].each do |drive, props|
+#   p drive if props['model'].eql?('MBF2600RC')
+# end
+
+# VM Disks
+# MK3001GRRB
+
+# Ceph Cache Disks
+# TXA2D20400GA6001
+
 
 #
 #
