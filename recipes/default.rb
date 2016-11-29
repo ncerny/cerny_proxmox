@@ -105,50 +105,51 @@ gluster_pvs = []
 node['block_device'].each do |drive, props|
   gluster_pvs << "/dev/#{drive}" if props['model'].eql?('MBF2600RC')
 end
-
-directory '/export/gv0' do
-  recursive true
-end
-
-lvm_volume_group 'glusterfs' do
-  physical_volumes gluster_pvs
-  wipe_signatures true
-
-  logical_volume 'gv0' do
-    size        '99%VG'
-    filesystem  'xfs'
-    mount_point location: '/export/gv0'
-    stripes     2
+if gluster_pvs
+  directory '/export/gv0' do
+    recursive true
   end
-end
 
-directory '/export/gv0/brick'
+  lvm_volume_group 'glusterfs' do
+    physical_volumes gluster_pvs
+    wipe_signatures true
 
-gluster_hosts = %w(pve01.infra.cerny.cc pve02.infra.cerny.cc)
-gluster_hosts.each do |host|
-  execute "GlusterFS: Configure the Trusted Pool - #{host}" do
-    command "gluster peer probe #{host}"
-    not_if { node['fqdn'].eql?(host) }
-    not_if "gluster peer status | grep #{host}"
+    logical_volume 'gv0' do
+      size        '99%VG'
+      filesystem  'xfs'
+      mount_point location: '/export/gv0'
+      stripes     2
+    end
   end
-end
 
-bricks = ''
-gluster_hosts.each do |host|
-  bricks << "#{host}:/export/gv0/brick "
-end
+  directory '/export/gv0/brick'
 
-# setfattr -x trusted.glusterfs.volume-id /export/gv0/brick
-# setfattr -x trusted.gfid /export/gv0/brick
+  gluster_hosts = %w(pve01.infra.cerny.cc pve02.infra.cerny.cc)
+  gluster_hosts.each do |host|
+    execute "GlusterFS: Configure the Trusted Pool - #{host}" do
+      command "gluster peer probe #{host}"
+      not_if { node['fqdn'].eql?(host) }
+      not_if "gluster peer status | grep #{host}"
+    end
+  end
 
-execute 'GlusterFS: Create Volume gv0' do
-  command "gluster volume create gv0 replica #{gluster_hosts.count} #{bricks}"
-  not_if 'gluster volume status gv0'
-end
+  bricks = ''
+  gluster_hosts.each do |host|
+    bricks << "#{host}:/export/gv0/brick "
+  end
 
-execute 'GlusterFS: Start volume gv0' do
-  command 'gluster volume start gv0'
-  not_if 'gluster volume info gv0 | grep Status | grep Started'
+  # setfattr -x trusted.glusterfs.volume-id /export/gv0/brick
+  # setfattr -x trusted.gfid /export/gv0/brick
+
+  execute 'GlusterFS: Create Volume gv0' do
+    command "gluster volume create gv0 replica #{gluster_hosts.count} #{bricks}"
+    not_if 'gluster volume status gv0'
+  end
+
+  execute 'GlusterFS: Start volume gv0' do
+    command 'gluster volume start gv0'
+    not_if 'gluster volume info gv0 | grep Status | grep Started'
+  end
 end
 
 execute 'PVE: Remove default storage - local-lvm' do
@@ -164,6 +165,14 @@ end
 execute 'PVE: Configure GlusterFS Storage' do
   command 'pvesh create /storage -storage gluster -type glusterfs -content images,iso,vztmpl -server pve01.infra.cerny.cc -server2 pve02.infra.cerny.cc -transport tcp -volume gv0'
   not_if 'pvesh get /storage/gluster'
+end
+
+remote_file 'CentOS-7-x86_64-Minimal-1511.iso' do
+  source 'http://isoredirect.centos.org/centos/7/isos/x86_64/CentOS-7-x86_64-Minimal-1511.iso'
+end
+
+execute 'Upload CentOS-7-x86_64-Minimal-1511.iso' do
+  command 'pvesh create /nodes/pve01/storage/gluster/upload -content iso -filename CentOS-7-x86_64-Minimal-1511.iso'
 end
 
 # Ceph Cache Disks
