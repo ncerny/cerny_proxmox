@@ -191,7 +191,7 @@ end
       vztmpl[line[0]] << line[1]
     end
 
-    vztmpl[src].select { |n| n =~ /#{fn}/ }.each do |f|
+    vztmpl[src.to_s].select { |n| n =~ /#{fn}/ }.each do |f|
       execute "GlusterFS: Upload #{f}" do
         command "pveam download gluster #{f}"
         not_if "pvesh get /nodes/#{node['hostname']}/storage/gluster/content | grep #{f}"
