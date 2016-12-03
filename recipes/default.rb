@@ -51,6 +51,7 @@ apt_repository 'jessie-backports' do
   distribution 'jessie-backports'
   components ['main']
   notifies :update, 'apt_update[pve]', :immediately
+  action :remove
 end
 
 apt_update 'pve' do
@@ -234,18 +235,39 @@ cookbook_file '/etc/haproxy/haproxy.cfg' do
 end
 
 # Run container exposing ports
-docker_container 'lb_haproxy' do
-  repo 'haproxy'
-  tag 'latest'
-  port ['80:80', '443:443']
-  host_name "haproxy#{node['hostname'][-2]}"
-  domain_name 'infra.cerny.cc'
-  volumes ['/etc/haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro']
+# docker_container 'lb_haproxy' do
+#   repo 'haproxy'
+#   tag 'latest'
+#   port ['80:80', '443:443']
+#   host_name "haproxy#{node['hostname'][-2]}"
+#   domain_name 'infra.cerny.cc'
+#   volumes ['/etc/haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro']
+# end
+
+git 'acme.sh' do
+  repository 'https://github.com/Neilpang/acme.sh.git'
+  revision 'master'
+  destination '/root/acme.sh-master'
+  action :sync
+  notifies :run, 'execute[acme.sh-install]', :immediately
 end
 
-package 'certbot'
+directory '/etc/pve/.le'
 
-execute "certbot certonly --standalone -d #{node['fqdn']}"
+execute 'acme.sh-install' do
+  command './acme.sh --install --accountconf /etc/pve/.le/account.conf --accountkey /etc/pve/.le/account.key --accountemail ncerny@gmail.com'
+  cwd '/root/acme.sh-master'
+  action :nothing
+end
+
+execute 'acme.sh issue-certificate' do
+  command <<-EOF
+    acme.sh --issue --standalone --keypath /etc/pve/local/pveproxy-ssl.key \
+      --fullchainpath /etc/pve/local/pveproxy-ssl.pem \
+      --reloadcmd "systemctl restart pveproxy" \
+      -d #{node['fqdn']}
+    EOF
+end
 
 # Ceph Cache Disks
 # TXA2D20400GA6001
