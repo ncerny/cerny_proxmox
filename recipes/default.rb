@@ -237,7 +237,7 @@ end
 docker_container 'lb_haproxy' do
   repo 'haproxy'
   tag 'latest'
-  port '80:80,443:443'
+  port ['80:80', '443:443']
   host_name "haproxy#{node['hostname'][-2]}"
   domain_name 'infra.cerny.cc'
   volumes ['/etc/haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro']
