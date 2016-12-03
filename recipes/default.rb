@@ -214,6 +214,13 @@ end
   end
 end
 
+docker_service 'default' do
+  host ['unix:///var/run/docker.sock', 'tcp://0.0.0.0:2376']
+  tls_verify true
+  install_method 'package'
+  action [:create, :start]
+end
+
 # Pull latest image
 docker_image 'haproxy' do
   tag 'latest'
