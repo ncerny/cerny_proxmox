@@ -29,6 +29,8 @@ apt_repository 'pve-enterprise' do
   action :remove
 end
 
+include_recipe 'chef-apt-docker'
+
 apt_repository 'pve-no-subscription' do
   uri 'http://download.proxmox.com/debian'
   distribution node['lsb']['codename'] || 'jessie'
@@ -41,6 +43,13 @@ apt_repository 'glusterfs' do
   distribution node['lsb']['codename'] || 'jessie'
   components ['main']
   key 'http://download.gluster.org/pub/gluster/glusterfs/3.9/rsa.pub'
+  notifies :update, 'apt_update[pve]', :immediately
+end
+
+apt_repository 'jessie-backports' do
+  uri 'http://ftp.debian.org/debian'
+  distribution 'jessie-backports'
+  components ['main']
   notifies :update, 'apt_update[pve]', :immediately
 end
 
@@ -157,6 +166,11 @@ execute 'PVE: Remove default storage - local-lvm' do
   only_if 'pvesh get /storage/local-lvm'
 end
 
+execute 'PVE: Configure default storage - local' do
+  command 'pvesh set /storage/local --content backup'
+  only_if 'pvesh get /storage/local | grep \"backup\"'
+end
+
 execute 'PVE: Configure Thin-LVM Storage' do
   command 'pvesh create /storage -storage lvm -type lvmthin -content rootdir,images -vgname pvedata -thinpool vmstore'
   not_if 'pvesh get /storage/lvm'
@@ -199,6 +213,33 @@ end
     end
   end
 end
+
+# Pull latest image
+docker_image 'haproxy' do
+  tag 'latest'
+  action :pull
+  notifies :redeploy, 'docker_container[lb_haproxy]'
+end
+
+directory '/etc/haproxy'
+
+cookbook_file '/etc/haproxy/haproxy.cfg' do
+  source 'haproxy.cfg'
+end
+
+# Run container exposing ports
+docker_container 'lb_haproxy' do
+  repo 'haproxy'
+  tag 'latest'
+  port '80:80,443:443'
+  host_name "haproxy#{node['hostname'][-2]}"
+  domain_name 'infra.cerny.cc'
+  volumes ['/etc/haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro']
+end
+
+package 'certbot'
+
+execute "certbot certonly --standalone -d #{node['fqdn']}"
 
 # Ceph Cache Disks
 # TXA2D20400GA6001
