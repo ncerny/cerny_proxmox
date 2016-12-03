@@ -4,7 +4,7 @@ maintainer_email 'ncerny@gmail.com'
 license 'apachev2'
 description 'Installs/Configures cerny_proxmox'
 long_description 'Installs/Configures cerny_proxmox'
-version '0.3.0'
+version '0.3.1'
 
 depends 'lvm'
 depends 'docker'

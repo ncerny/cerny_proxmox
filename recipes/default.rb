@@ -215,8 +215,7 @@ end
 end
 
 docker_service 'default' do
-  host ['unix:///var/run/docker.sock', 'tcp://0.0.0.0:2376']
-  tls_verify true
+  host ['unix:///var/run/docker.sock']
   install_method 'package'
   action [:create, :start]
 end
