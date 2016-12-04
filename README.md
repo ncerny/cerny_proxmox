@@ -2,6 +2,13 @@
 
 TODO: Enter the cookbook description here.
 
+function bp {
+    rm cookbooks*.tar.gz
+    berks update
+    berks package
+    git add cookbooks*.tar.gz
+}
+
 bp
 git add .
 git commit -sm "commit message"

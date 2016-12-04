@@ -184,6 +184,7 @@ end
 
 {
   'CentOS-7-x86_64-Minimal-1511.iso' => 'http://mirrors.mit.edu/centos/7/isos/x86_64/CentOS-7-x86_64-Minimal-1511.iso',
+  'CentOS-7-x86_64-GenericCloud' => 'http://cloud.centos.org/centos/7/images/CentOS-7-x86_64-GenericCloud.qcow2',
   'centos-7-default' => :system,
   'ubuntu-14.04-standard' => :system,
   'ubuntu-16.04-standard' => :system
@@ -222,17 +223,17 @@ docker_service 'default' do
 end
 
 # Pull latest image
-docker_image 'haproxy' do
-  tag 'latest'
-  action :pull
-  notifies :redeploy, 'docker_container[lb_haproxy]'
-end
-
-directory '/etc/haproxy'
-
-cookbook_file '/etc/haproxy/haproxy.cfg' do
-  source 'haproxy.cfg'
-end
+# docker_image 'haproxy' do
+#   tag 'latest'
+#   action :pull
+#   notifies :redeploy, 'docker_container[lb_haproxy]'
+# end
+#
+# directory '/etc/haproxy'
+#
+# cookbook_file '/etc/haproxy/haproxy.cfg' do
+#   source 'haproxy.cfg'
+# end
 
 # Run container exposing ports
 # docker_container 'lb_haproxy' do
@@ -244,30 +245,31 @@ end
 #   volumes ['/etc/haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro']
 # end
 
-git 'acme.sh' do
-  repository 'https://github.com/Neilpang/acme.sh.git'
-  revision 'master'
-  destination '/root/acme.sh-master'
-  action :sync
-  notifies :run, 'execute[acme.sh-install]', :immediately
-end
-
-directory '/etc/pve/.le'
-
-execute 'acme.sh-install' do
-  command './acme.sh --install --accountconf /etc/pve/.le/account.conf --accountkey /etc/pve/.le/account.key --accountemail ncerny@gmail.com'
-  cwd '/root/acme.sh-master'
-  action :nothing
-end
-
-execute 'acme.sh issue-certificate' do
-  command <<-EOF
-    acme.sh --issue --standalone --keypath /etc/pve/local/pveproxy-ssl.key \
-      --fullchainpath /etc/pve/local/pveproxy-ssl.pem \
-      --reloadcmd "systemctl restart pveproxy" \
-      -d #{node['fqdn']}
-    EOF
-end
+# git 'acme.sh' do
+#   repository 'https://github.com/Neilpang/acme.sh.git'
+#   revision 'master'
+#   destination '/root/acme.sh-master'
+#   action :sync
+#   notifies :run, 'execute[acme.sh-install]', :immediately
+# end
+#
+# directory '/etc/pve/.le'
+#
+# execute 'acme.sh-install' do
+#   command './acme.sh --install --accountconf /etc/pve/.le/account.conf --accountkey /etc/pve/.le/account.key --accountemail ncerny@gmail.com'
+#   cwd '/root/acme.sh-master'
+#   action :nothing
+# end
+#
+# execute 'acme.sh issue-certificate' do
+#   command <<-EOF
+#     ./acme.sh --issue --standalone --keypath /etc/pve/local/pveproxy-ssl.key \
+#       --fullchainpath /etc/pve/local/pveproxy-ssl.pem \
+#       --reloadcmd "systemctl restart pveproxy" \
+#       -d #{node['fqdn']}
+#     EOF
+#   cwd '/root/.acme.sh'
+# end
 
 # Ceph Cache Disks
 # TXA2D20400GA6001
