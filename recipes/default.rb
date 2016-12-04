@@ -196,7 +196,7 @@ end
       notifies :run, "execute[GlusterFS: Upload #{fn}]", :immediately
     end
     execute "GlusterFS: Upload #{fn}" do
-      command "pvesh create /nodes/#{node['hostname']}/storage/gluster/upload -content #{(fn.end_with?('iso') ? 'iso' : 'vztmpl')} -filename #{fn} -tmpfilename #{fn}"
+      command "pvesh create /nodes/#{node['hostname']}/storage/gluster/upload -content iso -filename #{fn} -tmpfilename #{fn}"
       action :nothing
     end
   elsif src.is_a?(Symbol)
