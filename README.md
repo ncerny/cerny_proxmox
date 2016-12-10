@@ -13,7 +13,7 @@ bp
 git add .
 git commit -sm "commit message"
 git push
-chef-client -z -r 'cerny_proxmox::default' --recipe-url=https://github.com/cerny-cc/cerny_proxmox/raw/master/cookbooks-1480860351.tar.gz
+chef-client -z -r 'cerny_proxmox::default' --recipe-url=https://github.com/cerny-cc/cerny_proxmox/raw/master/cookbooks-1481410031.tar.gz
 
 
 /usr/local/bin/proxmox-deploy --proxmox-host pve01.infra.cerny.cc --cloud-images-dir /mnt/pve/gluster/templates/cloud

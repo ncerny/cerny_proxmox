@@ -105,7 +105,7 @@ lvm_volume_group 'pvedata' do
   physical_volumes pve_pvs
   wipe_signatures true
 
-  logical_volume 'pve0' do
+  logical_volume 'data' do
     size        '99%VG'
     filesystem  'xfs'
     mount_point location: '/var/lib/vz'
