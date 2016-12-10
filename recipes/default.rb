@@ -191,8 +191,8 @@ end
     checksum: 'b9ae0b87aa4bd6539aa9b509278fabead3fe86aa3d615f02b300c72828bcfaad'
   }
 }.each do |key, hash|
-  vmid = key.split('_')[1]
-  template = (key.start_with?('template') ? 1 : 0)
+  vmid = key.to_s.split('_')[1]
+  template = (key.to_s.start_with?('template') ? 1 : 0)
 
   directory "/mnt/pve/gluster/images/#{vmid}"
 
