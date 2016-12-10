@@ -129,7 +129,7 @@ unless gluster_pvs.empty?
     logical_volume 'gv0' do
       size        '99%VG'
       filesystem  'xfs'
-      mount_point location: '/var/lib/vz'
+      mount_point location: '/export/gv0'
       stripes     2
     end
   end
