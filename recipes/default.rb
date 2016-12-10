@@ -180,20 +180,31 @@ execute 'PVE: Configure GlusterFS Storage' do
 end
 
 {
-  'CentOS-7-x86_64-GenericCloud-1608' => { vmid: 950, src: 'http://cloud.centos.org/centos/7/images/CentOS-7-x86_64-GenericCloud-1608.qcow2', checksum: 'b56ed1a3a489733d3ff91aca2011f8720c0540b9aa27e46dd0b4f575318dd1fa' },
-  'ubuntu-16.04-server-cloudimg-amd64-disk1.img' => { vmid: 960, src: 'http://cloud-images.ubuntu.com/releases/16.04/release-20161205/ubuntu-16.04-server-cloudimg-amd64-disk1.img', checksum: 'b9ae0b87aa4bd6539aa9b509278fabead3fe86aa3d615f02b300c72828bcfaad' }
-}.each do |fn, hash|
-  directory "/mnt/pve/gluster/images/#{hash[:vmid]}"
+  template_950: {
+    description: 'Centos 7-1608',
+    src: 'http://cloud.centos.org/centos/7/images/CentOS-7-x86_64-GenericCloud-1608.qcow2',
+    checksum: 'b56ed1a3a489733d3ff91aca2011f8720c0540b9aa27e46dd0b4f575318dd1fa'
+  },
+  template_951: {
+    description: 'Ubuntu 16.04-20161205',
+    src: 'http://cloud-images.ubuntu.com/releases/16.04/release-20161205/ubuntu-16.04-server-cloudimg-amd64-disk1.img',
+    checksum: 'b9ae0b87aa4bd6539aa9b509278fabead3fe86aa3d615f02b300c72828bcfaad'
+  }
+}.each do |key, hash|
+  vmid = key.split('_')[1]
+  template = (key.start_with?('template') ? 1 : 0)
 
-  remote_file "/mnt/pve/gluster/images/#{hash[:vmid]}/#{fn}" do
+  directory "/mnt/pve/gluster/images/#{vmid}"
+
+  remote_file "/mnt/pve/gluster/images/#{vmid}/vm-#{vmid}-disk-1.qcow2" do
     source hash[:src]
     checksum hash[:checksum]
-    notifies :run, "execute[create-template-#{fn}]"
+    notifies :run, "execute[create-template-#{vmid}]"
   end
 
-  execute "create-template-#{fn}" do
-    command "pvesh create /nodes/pve01/qemu -vmid #{hash[:vmid]} -bootdisk virtio0 -cores 2 -ide2 none,media=cdrom -memory 2048 -net0 virtio,bridge=vmbr0 -numa 1 -ostype l26 -sockets 1 -virtio0 gluster:#{hash[:vmid]}/#{fn},size=120G -template 1"
-    not_if "pvesh get /nodes/pve01/qemu/#{hash[:vmid]}/config"
+  execute "create-template-#{vmid}" do
+    command "pvesh create /nodes/pve01/qemu -vmid #{vmid} -bootdisk virtio0 -cores 2 -ide2 none,media=cdrom -memory 2048 -net0 virtio,bridge=vmbr0 -numa 1 -ostype l26 -sockets 1 -virtio0 gluster:#{vmid}/vm-#{vmid}-disk-1.qcow2,size=120G -template #{template}"
+    not_if "pvesh get /nodes/pve01/qemu/#{vmid}/config"
     action :nothing
   end
 end
