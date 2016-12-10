@@ -105,8 +105,10 @@ lvm_volume_group 'pvedata' do
   physical_volumes pve_pvs
   wipe_signatures true
 
-  thin_pool 'vmstore' do
-    size '99%VG'
+  logical_volume 'pve0' do
+    size        '99%VG'
+    filesystem  'xfs'
+    mount_point location: '/var/lib/vz'
   end
 end
 
@@ -127,7 +129,7 @@ unless gluster_pvs.empty?
     logical_volume 'gv0' do
       size        '99%VG'
       filesystem  'xfs'
-      mount_point location: '/export/gv0'
+      mount_point location: '/var/lib/vz'
       stripes     2
     end
   end
@@ -167,14 +169,9 @@ execute 'PVE: Remove default storage - local-lvm' do
   only_if 'pvesh get /storage/local-lvm'
 end
 
-execute 'PVE: Configure default storage - local' do
-  command 'pvesh set /storage/local --content backup'
-  only_if 'pvesh get /storage/local | grep \"backup\"'
-end
-
-execute 'PVE: Configure Thin-LVM Storage' do
-  command 'pvesh create /storage -storage lvm -type lvmthin -content rootdir,images -vgname pvedata -thinpool vmstore'
-  not_if 'pvesh get /storage/lvm'
+execute 'PVE: Configure local storage' do
+  command 'pvesh set /storage/local -content iso,vztmpl,rootdir,images'
+  not_if 'pvesh get /storage/local | grep "iso,vztmpl,rootdir,images"'
 end
 
 execute 'PVE: Configure GlusterFS Storage' do
@@ -183,8 +180,25 @@ execute 'PVE: Configure GlusterFS Storage' do
 end
 
 {
-  'CentOS-7-x86_64-Minimal-1511.iso' => 'http://mirrors.mit.edu/centos/7/isos/x86_64/CentOS-7-x86_64-Minimal-1511.iso',
-  'CentOS-7-x86_64-GenericCloud' => 'http://cloud.centos.org/centos/7/images/CentOS-7-x86_64-GenericCloud.qcow2',
+  'CentOS-7-x86_64-GenericCloud-1608' => { vmid: 950, src: 'http://cloud.centos.org/centos/7/images/CentOS-7-x86_64-GenericCloud-1608.qcow2', checksum: 'b56ed1a3a489733d3ff91aca2011f8720c0540b9aa27e46dd0b4f575318dd1fa' },
+  'ubuntu-16.04-server-cloudimg-amd64-disk1.img' => { vmid: 960, src: 'http://cloud-images.ubuntu.com/releases/16.04/release-20161205/ubuntu-16.04-server-cloudimg-amd64-disk1.img', checksum: 'b9ae0b87aa4bd6539aa9b509278fabead3fe86aa3d615f02b300c72828bcfaad' }
+}.each do |fn, hash|
+  directory "/mnt/pve/gluster/images/#{hash['vmid']}"
+
+  remote_file "/mnt/pve/gluster/images/#{hash['vmid']}/#{fn}" do
+    source hash['src']
+    checksum hash['checksum']
+    notifies :run, "execute[create-template-#{fn}]"
+  end
+
+  execute "create-template-#{fn}" do
+    command "pvesh create /nodes/pve01/qemu -vmid #{hash['vmid']} -bootdisk virtio0 -cores 2 -ide2 none,media=cdrom -memory 2048 -net0 virtio,bridge=vmbr0 -numa 1 -ostype l26 -sockets 1 -virtio0 gluster:#{hash['vmid']}/#{fn},size=120G -template 1"
+    not_if "pvesh get /nodes/pve01/qemu/#{hash['vmid']}/config"
+    action :nothing
+  end
+end
+
+{
   'centos-7-default' => :system,
   'ubuntu-14.04-standard' => :system,
   'ubuntu-16.04-standard' => :system
