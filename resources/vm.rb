@@ -1,6 +1,5 @@
 # rubocop:disable LineLength
 require_relative '../libraries/api'
-include Proxmox::API
 
 resource_name 'pve_vm'
 default_action :start
