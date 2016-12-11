@@ -1,7 +1,7 @@
 # rubocop:disable LineLength
 
-class Proxmox
-  class API
+module Proxmox
+  module API
     # def initialize()
     #
     # end
