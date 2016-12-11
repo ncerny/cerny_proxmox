@@ -1,5 +1,4 @@
 require_relative '../libraries/api'
-include Proxmox::API
 
 resource_name 'pve_cloud_template'
 
