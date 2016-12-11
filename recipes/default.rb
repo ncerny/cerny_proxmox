@@ -179,34 +179,18 @@ execute 'PVE: Configure GlusterFS Storage' do
   not_if 'pvesh get /storage/gluster'
 end
 
-{
-  template_950: {
-    description: 'Centos 7-1608',
-    src: 'http://cloud.centos.org/centos/7/images/CentOS-7-x86_64-GenericCloud-1608.qcow2',
-    checksum: 'b56ed1a3a489733d3ff91aca2011f8720c0540b9aa27e46dd0b4f575318dd1fa'
-  },
-  template_951: {
-    description: 'Ubuntu 16.04-20161205',
-    src: 'http://cloud-images.ubuntu.com/releases/16.04/release-20161205/ubuntu-16.04-server-cloudimg-amd64-disk1.img',
-    checksum: 'b9ae0b87aa4bd6539aa9b509278fabead3fe86aa3d615f02b300c72828bcfaad'
-  }
-}.each do |key, hash|
-  vmid = key.to_s.split('_')[1]
-  template = (key.to_s.start_with?('template') ? 1 : 0)
+pve_cloud_template 'TEMPLATE: Centos 7 (1608)' do
+  vmid 950
+  src 'http://cloud.centos.org/centos/7/images/CentOS-7-x86_64-GenericCloud-1608.qcow2'
+  checksum 'b56ed1a3a489733d3ff91aca2011f8720c0540b9aa27e46dd0b4f575318dd1fa'
+  host 'pve01'
+end
 
-  directory "/mnt/pve/gluster/images/#{vmid}"
-
-  remote_file "/mnt/pve/gluster/images/#{vmid}/vm-#{vmid}-disk-1.qcow2" do
-    source hash[:src]
-    checksum hash[:checksum]
-    notifies :run, "execute[create-template-#{vmid}]"
-  end
-
-  execute "create-template-#{vmid}" do
-    command "pvesh create /nodes/pve01/qemu -vmid #{vmid} -bootdisk virtio0 -cores 2 -ide2 none,media=cdrom -memory 2048 -net0 virtio,bridge=vmbr0 -numa 1 -ostype l26 -sockets 1 -virtio0 gluster:#{vmid}/vm-#{vmid}-disk-1.qcow2,size=120G -template #{template}"
-    not_if "pvesh get /nodes/pve01/qemu/#{vmid}/config"
-    action :nothing
-  end
+pve_cloud_template 'TEMPLATE: Ubuntu 16.04 (20161205)' do
+  vmid 960
+  src 'http://cloud-images.ubuntu.com/releases/16.04/release-20161205/ubuntu-16.04-server-cloudimg-amd64-disk1.img'
+  checksum 'b9ae0b87aa4bd6539aa9b509278fabead3fe86aa3d615f02b300c72828bcfaad'
+  host 'pve01'
 end
 
 {
