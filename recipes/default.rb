@@ -179,19 +179,19 @@ execute 'PVE: Configure GlusterFS Storage' do
   not_if 'pvesh get /storage/gluster'
 end
 
-pve_cloud_template 'TEMPLATE: Centos 7 (1608)' do
-  vmid 950
-  src 'http://cloud.centos.org/centos/7/images/CentOS-7-x86_64-GenericCloud-1608.qcow2'
-  checksum 'b56ed1a3a489733d3ff91aca2011f8720c0540b9aa27e46dd0b4f575318dd1fa'
-  host 'pve01'
-end
-
-pve_cloud_template 'TEMPLATE: Ubuntu 16.04 (20161205)' do
-  vmid 960
-  src 'http://cloud-images.ubuntu.com/releases/16.04/release-20161205/ubuntu-16.04-server-cloudimg-amd64-disk1.img'
-  checksum 'b9ae0b87aa4bd6539aa9b509278fabead3fe86aa3d615f02b300c72828bcfaad'
-  host 'pve01'
-end
+# pve_cloud_template 'TEMPLATE: Centos 7 (1608)' do
+#   vmid 950
+#   src 'http://cloud.centos.org/centos/7/images/CentOS-7-x86_64-GenericCloud-1608.qcow2'
+#   checksum 'b56ed1a3a489733d3ff91aca2011f8720c0540b9aa27e46dd0b4f575318dd1fa'
+#   host 'pve01'
+# end
+#
+# pve_cloud_template 'TEMPLATE: Ubuntu 16.04 (20161205)' do
+#   vmid 960
+#   src 'http://cloud-images.ubuntu.com/releases/16.04/release-20161205/ubuntu-16.04-server-cloudimg-amd64-disk1.img'
+#   checksum 'b9ae0b87aa4bd6539aa9b509278fabead3fe86aa3d615f02b300c72828bcfaad'
+#   host 'pve01'
+# end
 
 {
   'centos-7-default' => :system,
@@ -229,6 +229,129 @@ docker_service 'default' do
   host ['unix:///var/run/docker.sock']
   install_method 'package'
   action [:create, :start]
+end
+
+%w(acceptance union rehearsal delivered).each do |pool|
+  execute "PVE: Create pool #{pool}" do
+    command "pvesh create /pools -poolid #{pool}"
+    not_if "pvesh get /pools/#{pool}"
+  end
+end
+
+%w(chef-server chef-backend).each do |d|
+  directory "/etc/pve/chef/#{d}" do
+    recursive true
+  end
+end
+
+execute "CT: Create chefbe#{node['hostname'][-2]}" do
+  command "pvesh create /nodes/#{node['hostname']}/lxc -ostemplate gluster:vztmpl/ubuntu-16.04-standard_16.04-1_amd64.tar.gz -vmid 90#{node['hostname'][-1]}"
+  not_if "pvesh get /nodes/#{node['hostname']}/lxc/90#{node['hostname'][-1]}"
+end
+
+execute "CT: Configure chefbe#{node['hostname'][-2]}" do
+  command "pvesh set /nodes/#{node['hostname']}/lxc/90#{node['hostname'][-1]} \
+            -hostname chefbe#{node['hostname'][-2]}delivered.cerny.cc \
+            -cores 2 \
+            -memory 4096 \
+            -net0 name=eth0,bridge=vmbr1,type=veth \
+            -mp0 /etc/pve/chef/chef-backend,mp=/etc/chef-backend \
+            -onboot 1"
+end
+
+execute "CT: Create cheffe#{node['hostname'][-2]}" do
+  command "pvesh create /nodes/#{node['hostname']}/lxc -ostemplate gluster:vztmpl/ubuntu-16.04-standard_16.04-1_amd64.tar.gz -vmid 90#{(3 + node['hostname'][-1].to_i)}"
+  not_if "pvesh get /nodes/#{node['hostname']}/lxc/90#{(3 + node['hostname'][-1].to_i)}"
+end
+
+execute "CT: Configure cheffe#{node['hostname'][-2]}" do
+  command "pvesh set /nodes/#{node['hostname']}/lxc/90#{(3 + node['hostname'][-1].to_i)} \
+            -hostname cheffe#{node['hostname'][-2]}delivered.cerny.cc \
+            -cores 2 \
+            -memory 4096 \
+            -net0 name=eth0,bridge=vmbr1,type=veth \
+            -mp0 /etc/pve/chef/chef-server,mp=/etc/opscode \
+            -onboot 1"
+end
+
+execute "CT: Set chefbe#{node['hostname'][-2]} to Delivered pool" do
+  command "pvesh set /pools/delivered -vms 90#{node['hostname'][-1]}"
+end
+
+execute "CT: Set cheffe#{node['hostname'][-2]} to Delivered pool" do
+  command "pvesh set /pools/delivered -vms 90#{(3 + node['hostname'][-1].to_i)}"
+end
+
+execute "CT: Start chefbe#{node['hostname'][-2]}" do
+  command "pct start 90#{node['hostname'][-1]}"
+  only_if "pct status 90#{node['hostname'][-1]} | grep stopped"
+end
+
+execute "CT: Start cheffe#{node['hostname'][-2]}" do
+  command "pct start 90#{(3 + node['hostname'][-1].to_i)}"
+  only_if "pct status 90#{(3 + node['hostname'][-1].to_i)} | grep stopped"
+end
+
+remote_file 'chef-backend' do
+  source 'https://packages.chef.io/files/stable/chef-backend/1.2.5/ubuntu/16.04/chef-backend_1.2.5-1_amd64.deb'
+  checksum '3bbef404313852440ee511e6a1711afb69c4a3d48314d6efb35884a400373b5f'
+  notifies :run, 'execute[CT: Push chef-backend package]', :immediately
+end
+
+remote_file 'chef-server-core' do
+  source 'https://packages.chef.io/files/stable/chef-server/12.11.1/ubuntu/16.04/chef-server-core_12.11.1-1_amd64.deb'
+  checksum 'f9937ae1f43d7b5b12a5f91814c61ce903329197cd342228f2a2640517c185a6'
+  notifies :run, 'execute[CT: Push chef-server-core package]', :immediately
+end
+
+execute 'CT: Push chef-backend package' do
+  action :nothing
+  command "pct push 90#{node['hostname'][-1]} chef-backend_1.2.5-1_amd64.deb /tmp/chef-backend_1.2.5-1_amd64.deb"
+  notifies :run, 'execute[CT: Install chef-backend]', :immediately
+end
+
+execute 'CT: Push chef-server-core package' do
+  action :nothing
+  command "pct push 90#{(3 + node['hostname'][-1].to_i)} chef-server-core_12.11.1-1_amd64.deb /tmp/chef-server-core_12.11.1-1_amd64.deb"
+  notifies :run, 'execute[CT: Install chef-server-core]', :immediately
+end
+
+execute 'CT: Install chef-backend' do
+  action :nothing
+  command "pct exec 90#{node['hostname'][-1]} -- dpkg -i /tmp/chef-backend_1.2.5-1_amd64.deb"
+end
+
+execute 'CT: Install chef-server-core' do
+  action :nothing
+  command "pct exec 90#{(3 + node['hostname'][-1].to_i)} -- dpkg -i /tmp/chef-server-core_12.11.1-1_amd64.deb"
+end
+
+execute 'CT: Create Cluster' do
+  command "pct exec 90#{node['hostname'][-1]} -- chef-backend-ctl create-cluster"
+  not_if { ::File.exist?('/etc/pve/chef/chef-backend/chef-backend-secrets.json') }
+  not_if "pct exec 90#{node['hostname'][-1]} -- chef-backend-ctl status"
+end
+
+execute 'CT: Join Cluster' do
+  command "pct exec 90#{node['hostname'][-1]} -- chef-backend-ctl create-cluster"
+  only_if { ::File.exist?('/etc/pve/chef/chef-backend/chef-backend-secrets.json') }
+  not_if "pct exec 90#{node['hostname'][-1]} -- chef-backend-ctl status"
+end
+
+execute 'CT: Create chef-server.rb' do
+  command "pct exec 90#{node['hostname'][-1]} -- chef-backend-ctl gen-server-config chef.cerny.cc -f /tmp/chef-server.rb"
+  not_if { ::File.exist?('/etc/pve/chef/chef-server/chef-server.rb') }
+end
+
+execute 'CT: Pull chef-server.rb' do
+  command "pct pull 90#{node['hostname'][-1]} /tmp/chef-server.rb /etc/pve/chef/chef-server/chef-server.rb"
+  not_if { ::File.exist?('/etc/pve/chef/chef-server/chef-server.rb') }
+  notifies :run, 'execute[CT: chef-server-ctl reconfigure]', :immediately
+end
+
+execute 'CT: chef-server-ctl reconfigure' do
+  command "pct exec 90#{(3 + node['hostname'][-1].to_i)} -- chef-server-ctl reconfigure"
+  action :nothing
 end
 
 # Pull latest image

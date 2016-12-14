@@ -3,7 +3,7 @@ require_relative '../libraries/api'
 resource_name 'pve_cloud_template'
 
 property :name, String, name_property: true
-property :vmid, String
+property :vmid, String, default: nil
 property :host, String, default: node['hostname']
 property :size, [String, Hash], default: 'micro'
 property :net, Hash, default: { net0: 'virtio,bridge=vmbr0' }
