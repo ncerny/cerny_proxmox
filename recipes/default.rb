@@ -251,11 +251,10 @@ end
 
 execute "CT: Configure chefbe#{node['hostname'][-2,2]}" do
   command "pvesh set /nodes/#{node['hostname']}/lxc/90#{node['hostname'][-1]}/config \
-            -hostname chefbe#{node['hostname'][-2,2]}delivered.cerny.cc \
+            -hostname chefbe#{node['hostname'][-2,2]}.delivered.cerny.cc \
             -cores 2 \
             -memory 4096 \
             -net0 name=eth0,bridge=vmbr1,type=veth \
-            -mp0 /etc/pve/chef/chef-backend,mp=/etc/chef-backend \
             -onboot 1"
   only_if "pct status 90#{node['hostname'][-1]} | grep stopped"
 end
@@ -267,11 +266,10 @@ end
 
 execute "CT: Configure cheffe#{node['hostname'][-2,2]}" do
   command "pvesh set /nodes/#{node['hostname']}/lxc/90#{(3 + node['hostname'][-1].to_i)}/config \
-            -hostname cheffe#{node['hostname'][-2,2]}delivered.cerny.cc \
+            -hostname cheffe#{node['hostname'][-2,2]}.delivered.cerny.cc \
             -cores 2 \
             -memory 4096 \
             -net0 name=eth0,bridge=vmbr1,type=veth \
-            -mp0 /etc/pve/chef/chef-server,mp=/etc/opscode \
             -onboot 1"
   only_if "pct status 90#{(3 + node['hostname'][-1].to_i)} | grep stopped"
 end
@@ -331,15 +329,20 @@ execute 'CT: Install chef-server-core' do
 end
 
 execute 'CT: Create Cluster' do
-  command "pct exec 90#{node['hostname'][-1]} -- chef-backend-ctl create-cluster"
+  command "pct exec 90#{node['hostname'][-1]} -- chef-backend-ctl create-cluster --accept-license --yes"
   not_if { ::File.exist?('/etc/pve/chef/chef-backend/chef-backend-secrets.json') }
   not_if "pct exec 90#{node['hostname'][-1]} -- chef-backend-ctl status"
 end
 
 execute 'CT: Join Cluster' do
-  command "pct exec 90#{node['hostname'][-1]} -- chef-backend-ctl create-cluster"
+  command "pct exec 90#{node['hostname'][-1]} -- chef-backend-ctl join-cluster --accept-license --yes"
   only_if { ::File.exist?('/etc/pve/chef/chef-backend/chef-backend-secrets.json') }
   not_if "pct exec 90#{node['hostname'][-1]} -- chef-backend-ctl status"
+end
+
+execute 'CT: Pull chef-backend-secrets.json' do
+  command "pct pull 90#{node['hostname'][-1]} /etc/chef-backend/chef-backend-secrets.json /etc/pve/chef/chef-backend/chef-backend-secrets.json"
+  not_if { ::File.exist?('/etc/pve/chef/chef-backend/chef-backend-secrets.json') }
 end
 
 execute 'CT: Create chef-server.rb' do
@@ -354,7 +357,7 @@ execute 'CT: Pull chef-server.rb' do
 end
 
 execute 'CT: chef-server-ctl reconfigure' do
-  command "pct exec 90#{(3 + node['hostname'][-1].to_i)} -- chef-server-ctl reconfigure"
+  command "pct exec 90#{(3 + node['hostname'][-1].to_i)} -- chef-server-ctl reconfigure --accept-license"
   action :nothing
 end
 
