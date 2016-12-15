@@ -250,7 +250,7 @@ execute "CT: Create chefbe#{node['hostname'][-2]}" do
 end
 
 execute "CT: Configure chefbe#{node['hostname'][-2]}" do
-  command "pvesh set /nodes/#{node['hostname']}/lxc/90#{node['hostname'][-1]} \
+  command "pvesh set /nodes/#{node['hostname']}/lxc/90#{node['hostname'][-1]}/config \
             -hostname chefbe#{node['hostname'][-2]}delivered.cerny.cc \
             -cores 2 \
             -memory 4096 \
@@ -265,7 +265,7 @@ execute "CT: Create cheffe#{node['hostname'][-2]}" do
 end
 
 execute "CT: Configure cheffe#{node['hostname'][-2]}" do
-  command "pvesh set /nodes/#{node['hostname']}/lxc/90#{(3 + node['hostname'][-1].to_i)} \
+  command "pvesh set /nodes/#{node['hostname']}/lxc/90#{(3 + node['hostname'][-1].to_i)}/config \
             -hostname cheffe#{node['hostname'][-2]}delivered.cerny.cc \
             -cores 2 \
             -memory 4096 \
