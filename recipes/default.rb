@@ -296,13 +296,13 @@ execute "CT: Start cheffe#{node['hostname'][-2,2]}" do
   only_if "pct status 90#{(3 + node['hostname'][-1].to_i)} | grep stopped"
 end
 
-remote_file 'chef-backend' do
+remote_file '/tmp/chef-backend.deb' do
   source 'https://packages.chef.io/files/stable/chef-backend/1.2.5/ubuntu/16.04/chef-backend_1.2.5-1_amd64.deb'
   checksum '3bbef404313852440ee511e6a1711afb69c4a3d48314d6efb35884a400373b5f'
   notifies :run, 'execute[CT: Push chef-backend package]', :immediately
 end
 
-remote_file 'chef-server-core' do
+remote_file '/tmp/chef-server-core.deb' do
   source 'https://packages.chef.io/files/stable/chef-server/12.11.1/ubuntu/16.04/chef-server-core_12.11.1-1_amd64.deb'
   checksum 'f9937ae1f43d7b5b12a5f91814c61ce903329197cd342228f2a2640517c185a6'
   notifies :run, 'execute[CT: Push chef-server-core package]', :immediately
@@ -310,24 +310,24 @@ end
 
 execute 'CT: Push chef-backend package' do
   action :nothing
-  command "pct push 90#{node['hostname'][-1]} chef-backend_1.2.5-1_amd64.deb /tmp/chef-backend_1.2.5-1_amd64.deb"
+  command "pct push 90#{node['hostname'][-1]} /tmp/chef-backend.deb /tmp/chef-backend.deb"
   notifies :run, 'execute[CT: Install chef-backend]', :immediately
 end
 
 execute 'CT: Push chef-server-core package' do
   action :nothing
-  command "pct push 90#{(3 + node['hostname'][-1].to_i)} chef-server-core_12.11.1-1_amd64.deb /tmp/chef-server-core_12.11.1-1_amd64.deb"
+  command "pct push 90#{(3 + node['hostname'][-1].to_i)} /tmp/chef-server-core.deb /tmp/chef-server-core.deb"
   notifies :run, 'execute[CT: Install chef-server-core]', :immediately
 end
 
 execute 'CT: Install chef-backend' do
   action :nothing
-  command "pct exec 90#{node['hostname'][-1]} -- dpkg -i /tmp/chef-backend_1.2.5-1_amd64.deb"
+  command "pct exec 90#{node['hostname'][-1]} -- dpkg -i /tmp/chef-backend.deb"
 end
 
 execute 'CT: Install chef-server-core' do
   action :nothing
-  command "pct exec 90#{(3 + node['hostname'][-1].to_i)} -- dpkg -i /tmp/chef-server-core_12.11.1-1_amd64.deb"
+  command "pct exec 90#{(3 + node['hostname'][-1].to_i)} -- dpkg -i /tmp/chef-server-core.deb"
 end
 
 execute 'CT: Create Cluster' do
