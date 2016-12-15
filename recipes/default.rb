@@ -244,50 +244,52 @@ end
   end
 end
 
-execute "CT: Create chefbe#{node['hostname'][-2]}" do
+execute "CT: Create chefbe#{node['hostname'][-2,2]}" do
   command "pvesh create /nodes/#{node['hostname']}/lxc -ostemplate gluster:vztmpl/ubuntu-16.04-standard_16.04-1_amd64.tar.gz -vmid 90#{node['hostname'][-1]}"
   not_if "pvesh get /nodes/#{node['hostname']}/lxc/90#{node['hostname'][-1]}"
 end
 
-execute "CT: Configure chefbe#{node['hostname'][-2]}" do
+execute "CT: Configure chefbe#{node['hostname'][-2,2]}" do
   command "pvesh set /nodes/#{node['hostname']}/lxc/90#{node['hostname'][-1]}/config \
-            -hostname chefbe#{node['hostname'][-2]}delivered.cerny.cc \
+            -hostname chefbe#{node['hostname'][-2,2]}delivered.cerny.cc \
             -cores 2 \
             -memory 4096 \
             -net0 name=eth0,bridge=vmbr1,type=veth \
             -mp0 /etc/pve/chef/chef-backend,mp=/etc/chef-backend \
             -onboot 1"
+  only_if "pct status 90#{node['hostname'][-1]} | grep stopped"
 end
 
-execute "CT: Create cheffe#{node['hostname'][-2]}" do
+execute "CT: Create cheffe#{node['hostname'][-2,2]}" do
   command "pvesh create /nodes/#{node['hostname']}/lxc -ostemplate gluster:vztmpl/ubuntu-16.04-standard_16.04-1_amd64.tar.gz -vmid 90#{(3 + node['hostname'][-1].to_i)}"
   not_if "pvesh get /nodes/#{node['hostname']}/lxc/90#{(3 + node['hostname'][-1].to_i)}"
 end
 
-execute "CT: Configure cheffe#{node['hostname'][-2]}" do
+execute "CT: Configure cheffe#{node['hostname'][-2,2]}" do
   command "pvesh set /nodes/#{node['hostname']}/lxc/90#{(3 + node['hostname'][-1].to_i)}/config \
-            -hostname cheffe#{node['hostname'][-2]}delivered.cerny.cc \
+            -hostname cheffe#{node['hostname'][-2,2]}delivered.cerny.cc \
             -cores 2 \
             -memory 4096 \
             -net0 name=eth0,bridge=vmbr1,type=veth \
             -mp0 /etc/pve/chef/chef-server,mp=/etc/opscode \
             -onboot 1"
+  only_if "pct status 90#{(3 + node['hostname'][-1].to_i)} | grep stopped"
 end
 
-execute "CT: Set chefbe#{node['hostname'][-2]} to Delivered pool" do
+execute "CT: Set chefbe#{node['hostname'][-2,2]} to Delivered pool" do
   command "pvesh set /pools/delivered -vms 90#{node['hostname'][-1]}"
 end
 
-execute "CT: Set cheffe#{node['hostname'][-2]} to Delivered pool" do
+execute "CT: Set cheffe#{node['hostname'][-2,2]} to Delivered pool" do
   command "pvesh set /pools/delivered -vms 90#{(3 + node['hostname'][-1].to_i)}"
 end
 
-execute "CT: Start chefbe#{node['hostname'][-2]}" do
+execute "CT: Start chefbe#{node['hostname'][-2,2]}" do
   command "pct start 90#{node['hostname'][-1]}"
   only_if "pct status 90#{node['hostname'][-1]} | grep stopped"
 end
 
-execute "CT: Start cheffe#{node['hostname'][-2]}" do
+execute "CT: Start cheffe#{node['hostname'][-2,2]}" do
   command "pct start 90#{(3 + node['hostname'][-1].to_i)}"
   only_if "pct status 90#{(3 + node['hostname'][-1].to_i)} | grep stopped"
 end
