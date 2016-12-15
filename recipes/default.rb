@@ -278,10 +278,12 @@ end
 
 execute "CT: Set chefbe#{node['hostname'][-2,2]} to Delivered pool" do
   command "pvesh set /pools/delivered -vms 90#{node['hostname'][-1]}"
+  not_if "pvesh get /pools/delivered | grep lxc/90#{node['hostname'][-1]}"
 end
 
 execute "CT: Set cheffe#{node['hostname'][-2,2]} to Delivered pool" do
   command "pvesh set /pools/delivered -vms 90#{(3 + node['hostname'][-1].to_i)}"
+  not_if "pvesh get /pools/delivered | grep lxc/90#{(3 + node['hostname'][-1].to_i)}"
 end
 
 execute "CT: Start chefbe#{node['hostname'][-2,2]}" do
